@@ -1,0 +1,86 @@
+import tweepy, json, google, random, time, os.path
+
+
+f = open('twtrcredentials.json', 'r')
+
+tcred = json.load(f)
+
+print(len(tcred))
+def accchanger(creds):
+    ln = len(creds)
+    for n in ln:
+        client = tweepy.Client(consumer_key=creds[n]['consumer_key'],
+                       consumer_secret=creds[n]['consumer_secret'],
+                       access_token=creds[n]['access_token'],
+                       access_token_secret=creds[n]['access_token_secret'],
+                       bearer_token=creds[n]['bearer_token']
+                       )
+
+
+def searchTweets(client, query, max_results):
+    tweets = client.search_recent_tweets(query=query, max_results=max_results)
+    tweet_data =  tweets.data
+    results = []
+    if not tweet_data is None and len(tweet_data) > 0:
+        for tweet in tweet_data:
+            obj = {}
+            obj['id'] = tweet.id
+            obj['text'] = tweet.text
+            results.append(obj)
+    return results
+
+
+def pickclient(listref, creds):
+    n = listref
+    client = tweepy.Client(consumer_key=creds[n]['consumer_key'],
+                           consumer_secret=creds[n]['consumer_secret'],
+                           access_token=creds[n]['access_token'],
+                           access_token_secret=creds[n]['access_token_secret'],
+                           bearer_token=creds[n]['bearer_token']
+                           )
+    return client
+
+def fltrtwtcontent(input, filters):
+    output = []
+    for n in range(0, len(input)):
+        text = input[n]['text']
+        if not any(map(text.__contains__,filters)):
+            output.append(input[n])
+    return output
+
+def fltrtwtid(input, filters):
+    output = []
+    for n in range(0, len(input)):
+        text = input[n]
+        if not text in filters:
+            output.append(input[n])
+    return output
+
+
+def rtbot(creds):
+    client = pickclient(0, creds)
+    filters = ['turd', 'Turd']
+    priorrt_list = json.load(open('retweetedpostids.json', 'r'))
+    rt_list = fltrtwtid(fltrtwtcontent(searchTweets(client, '#istandwithamberheard', 10), filters), priorrt_list)
+    ln = len(rt_list)
+    for n in range(0, ln):
+        id = rt_list[n]['id']
+        text = rt_list[n]['text']
+        for i in range(0, len(creds)):
+            client = pickclient(i, creds)
+            print('user: ' + str(i))
+            print('like and retweet - attempting ' + str(n) + ' of ' + str(ln) + '  with ID: ' + str(rt_list[n]['id']) + ' and text:' + str(rt_list[n]['text']))
+            try:
+                client.retweet(tweet_id=rt_list[n]['id'])
+                client.like(tweet_id=(rt_list[n]['id']))
+                print('success')
+            except:
+                print('tweeting failed for some reason')
+        delay = 30 + random.randint(0, 10)
+        time.sleep(delay)
+    with open("retweetedpostids.json", "w") as outfile:
+        json.dump(priorrt_list, outfile)
+    rtbot(creds)
+
+
+rtbot(tcred)
